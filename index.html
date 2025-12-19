@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-Reactive Space</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            background: #0a0e27;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        }
+
+        .controls-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 20, 50, 0.95);
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 8px 32px rgba(100, 200, 255, 0.2);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64c8ff;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .audio-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #audioInput {
+            flex: 1;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        #audioInput:focus {
+            outline: none;
+            border-color: rgba(100, 200, 255, 0.8);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.3);
+        }
+
+        #audioFileInput {
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #64c8ff 0%, #4a9fd8 100%);
+            border: none;
+            border-radius: 8px;
+            color: #0a0e27;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(100, 200, 255, 0.4);
+            background: linear-gradient(135deg, #7dd4ff 0%, #5caae8 100%);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(100, 200, 255, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .slider-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .slider-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(100, 200, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #64c8ff 0%, #4a9fd8 100%);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.6);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #64c8ff 0%, #4a9fd8 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.6);
+        }
+
+        .value-display {
+            font-size: 11px;
+            color: #64c8ff;
+            margin-top: 4px;
+            text-align: center;
+        }
+
+        .visualizer-bars {
+            display: flex;
+            gap: 3px;
+            height: 40px;
+            align-items: flex-end;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .bar {
+            flex: 1;
+            background: linear-gradient(to top, #64c8ff, #ff006e);
+            border-radius: 2px;
+            min-height: 2px;
+            transition: height 0.05s ease;
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 20, 50, 0.95);
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 300px;
+            box-shadow: 0 8px 32px rgba(100, 200, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .info-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #64c8ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .info-item {
+            font-size: 12px;
+            color: #a8d8ff;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-value {
+            color: #64c8ff;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .controls-container {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                transform: none;
+                width: auto;
+                max-width: none;
+            }
+
+            .slider-group {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                flex: none;
+            }
+
+            .info-panel {
+                display: none;
+            }
+        }
+
+        .toggle-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #ff006e 0%, #c9184a 100%);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 110, 0.4);
+            background: linear-gradient(135deg, #ff1a7e 0%, #d62d5c 100%);
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(100, 200, 255, 0.3);
+            border-top: 2px solid #64c8ff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas for visualization -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Information Panel -->
+    <div class="info-panel">
+        <div class="info-title">Audio Reactive Space</div>
+        <div class="info-item">
+            <span>Status:</span>
+            <span class="info-value" id="statusDisplay">Ready</span>
+        </div>
+        <div class="info-item">
+            <span>Frequency:</span>
+            <span class="info-value" id="frequencyDisplay">0 Hz</span>
+        </div>
+        <div class="info-item">
+            <span>Amplitude:</span>
+            <span class="info-value" id="amplitudeDisplay">0.00</span>
+        </div>
+        <div class="info-item">
+            <span>FPS:</span>
+            <span class="info-value" id="fpsDisplay">60</span>
+        </div>
+        <div class="info-item">
+            <span>Particles:</span>
+            <span class="info-value" id="particleDisplay">0</span>
+        </div>
+    </div>
+
+    <!-- Controls Container -->
+    <div class="controls-container">
+        <!-- Audio Input Section -->
+        <div class="control-group">
+            <label class="control-label">📁 Load Audio File</label>
+            <div class="audio-input-group">
+                <input type="file" id="audioFileInput" accept="audio/*">
+                <button id="loadFileBtn" onclick="document.getElementById('audioFileInput').click()">
+                    Choose File
+                </button>
+                <button id="resetBtn" onclick="resetAudio()">Reset</button>
+            </div>
+        </div>
+
+        <!-- Playback Controls Section -->
+        <div class="control-group">
+            <label class="control-label">🎵 Playback Controls</label>
+            <div class="button-group">
+                <button id="playBtn" onclick="togglePlayPause()">Play</button>
+                <button id="stopBtn" onclick="stopAudio()">Stop</button>
+            </div>
+            <div class="button-group" style="margin-top: 8px;">
+                <input type="range" id="volumeSlider" min="0" max="100" value="70">
+            </div>
+            <div class="control-label" style="margin-top: 8px; color: #a8d8ff;">
+                Volume: <span class="info-value" id="volumeValue">70%</span>
+            </div>
+        </div>
+
+        <!-- Visualization Parameters -->
+        <div class="control-group">
+            <label class="control-label">✨ Visualization Settings</label>
+            <div class="slider-group">
+                <div class="slider-item">
+                    <label class="control-label" style="margin-bottom: 6px;">Sensitivity</label>
+                    <input type="range" id="sensitivitySlider" min="0.1" max="3" value="1.5" step="0.1">
+                    <div class="value-display" id="sensitivityValue">1.50x</div>
+                </div>
+                <div class="slider-item">
+                    <label class="control-label" style="margin-bottom: 6px;">Particle Count</label>
+                    <input type="range" id="particleCountSlider" min="50" max="500" value="200" step="50">
+                    <div class="value-display" id="particleCountValue">200</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="control-group">
+            <label class="control-label">⚙️ Advanced Settings</label>
+            <div class="slider-group">
+                <div class="slider-item">
+                    <label class="control-label" style="margin-bottom: 6px;">Color Hue</label>
+                    <input type="range" id="hueSlider" min="0" max="360" value="200" step="1">
+                    <div class="value-display" id="hueValue">200°</div>
+                </div>
+                <div class="slider-item">
+                    <label class="control-label" style="margin-bottom: 6px;">Animation Speed</label>
+                    <input type="range" id="speedSlider" min="0.5" max="2" value="1" step="0.1">
+                    <div class="value-display" id="speedValue">1.00x</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualizer Preview -->
+        <div class="control-group">
+            <label class="control-label">🎚️ Frequency Response</label>
+            <div class="visualizer-bars" id="visualizerBars">
+                <div class="bar" style="height: 10%;"></div>
+                <div class="bar" style="height: 15%;"></div>
+                <div class="bar" style="height: 8%;"></div>
+                <div class="bar" style="height: 20%;"></div>
+                <div class="bar" style="height: 12%;"></div>
+                <div class="bar" style="height: 18%;"></div>
+                <div class="bar" style="height: 10%;"></div>
+            </div>
+        </div>
+
+        <!-- Toggle Effects -->
+        <div class="control-group">
+            <button class="toggle-btn" id="particleToggle" onclick="toggleParticles()">
+                ⚛️ Particles: ON
+            </button>
+            <button class="toggle-btn" id="waveToggle" onclick="toggleWaves()">
+                〰️ Waves: ON
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context and Analysis
+        let audioContext;
+        let audioSource;
+        let analyser;
+        let oscillator;
+        let isPlaying = false;
+        let audioBuffer = null;
+        let bufferSource;
+
+        // Canvas and Rendering
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let animationId;
+
+        // Particle System
+        let particles = [];
+        let particlesEnabled = true;
+        let wavesEnabled = true;
+
+        // Settings
+        let settings = {
+            sensitivity: 1.5,
+            particleCount: 200,
+            hue: 200,
+            speed: 1,
+            volume: 0.7
+        };
+
+        // Initialize Canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize Web Audio API
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.connect(audioContext.destination);
+            }
+        }
+
+        // Load Audio File
+        document.getElementById('audioFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            initAudioContext();
+            updateStatus('Loading...', true);
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                updateStatus('Loaded');
+                document.getElementById('loadFileBtn').textContent = file.name.substring(0, 20);
+            } catch (error) {
+                console.error('Error loading audio:', error);
+                updateStatus('Error');
+                alert('Failed to load audio file');
+            }
+        });
+
+        // Toggle Play/Pause
+        function togglePlayPause() {
+            initAudioContext();
+
+            if (!audioBuffer) {
+                alert('Please load an audio file first');
+                return;
+            }
+
+            if (isPlaying) {
+                if (bufferSource) {
+                    bufferSource.stop();
+                }
+                isPlaying = false;
+                document.getElementById('playBtn').textContent = 'Play';
+                updateStatus('Paused');
+            } else {
+                bufferSource = audioContext.createBufferSource();
+                bufferSource.buffer = audioBuffer;
+                bufferSource.connect(analyser);
+
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = settings.volume;
+                bufferSource.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                bufferSource.start(0);
+                isPlaying = true;
+                document.getElementById('playBtn').textContent = 'Pause';
+                updateStatus('Playing');
+            }
+        }
+
+        // Stop Audio
+        function stopAudio() {
+            if (bufferSource) {
+                bufferSource.stop();
+            }
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = 'Play';
+            updateStatus('Stopped');
+            particles = [];
+        }
+
+        // Reset Audio
+        function resetAudio() {
+            stopAudio();
+            audioBuffer = null;
+            document.getElementById('audioFileInput').value = '';
+            document.getElementById('loadFileBtn').textContent = 'Choose File';
+            updateStatus('Ready');
+        }
+
+        // Update Status Display
+        function updateStatus(status, loading = false) {
+            const statusEl = document.getElementById('statusDisplay');
+            statusEl.textContent = loading ? status + ' ' : status;
+            if (loading) {
+                statusEl.innerHTML += '<span class="loading"></span>';
+            }
+        }
+
+        // Volume Control
+        document.getElementById('volumeSlider').addEventListener('input', (e) => {
+            settings.volume = e.target.value / 100;
+            document.getElementById('volumeValue').textContent = e.target.value + '%';
+
+            if (bufferSource && isPlaying) {
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = settings.volume;
+                bufferSource.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+            }
+        });
+
+        // Sensitivity Control
+        document.getElementById('sensitivitySlider').addEventListener('input', (e) => {
+            settings.sensitivity = parseFloat(e.target.value);
+            document.getElementById('sensitivityValue').textContent = settings.sensitivity.toFixed(2) + 'x';
+        });
+
+        // Particle Count Control
+        document.getElementById('particleCountSlider').addEventListener('input', (e) => {
+            settings.particleCount = parseInt(e.target.value);
+            document.getElementById('particleCountValue').textContent = settings.particleCount;
+        });
+
+        // Hue Control
+        document.getElementById('hueSlider').addEventListener('input', (e) => {
+            settings.hue = parseInt(e.target.value);
+            document.getElementById('hueValue').textContent = settings.hue + '°';
+        });
+
+        // Speed Control
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            settings.speed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = settings.speed.toFixed(2) + 'x';
+        });
+
+        // Toggle Particles
+        function toggleParticles() {
+            particlesEnabled = !particlesEnabled;
+            const btn = document.getElementById('particleToggle');
+            btn.textContent = '⚛️ Particles: ' + (particlesEnabled ? 'ON' : 'OFF');
+            btn.classList.toggle('active');
+        }
+
+        // Toggle Waves
+        function toggleWaves() {
+            wavesEnabled = !wavesEnabled;
+            const btn = document.getElementById('waveToggle');
+            btn.textContent = '〰️ Waves: ' + (wavesEnabled ? 'ON' : 'OFF');
+            btn.classList.toggle('active');
+        }
+
+        // Particle Class
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 255;
+                this.size = Math.random() * 3 + 1;
+            }
+
+            update() {
+                this.x += this.vx * settings.speed;
+                this.y += this.vy * settings.speed;
+                this.life -= 2;
+            }
+
+            draw(ctx) {
+                ctx.globalAlpha = this.life / 255;
+                ctx.fillStyle = `hsl(${settings.hue}, 100%, 50%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+
+        // Get Frequency Data
+        function getFrequencyData() {
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            return dataArray;
+        }
+
+        // Visualizer Bars Update
+        function updateVisualizerBars(dataArray) {
+            const bars = document.querySelectorAll('.bar');
+            const barCount = bars.length;
+            const step = Math.floor(dataArray.length / barCount);
+
+            bars.forEach((bar, i) => {
+                const value = dataArray[i * step];
+                const height = (value / 255) * 100;
+                bar.style.height = Math.max(height, 2) + '%';
+            });
+        }
+
+        // Update Info Display
+        function updateInfoDisplay(dataArray) {
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            const max = Math.max(...dataArray);
+            const frequency = Math.round((max / 255) * 20000);
+
+            document.getElementById('frequencyDisplay').textContent = frequency + ' Hz';
+            document.getElementById('amplitudeDisplay').textContent = (average / 255).toFixed(2);
+            document.getElementById('particleDisplay').textContent = particles.length;
+        }
+
+        // Animation Loop
+        let lastTime = Date.now();
+        let frameCount = 0;
+
+        function animate() {
+            // FPS Counter
+            const currentTime = Date.now();
+            frameCount++;
+            if (currentTime - lastTime >= 1000) {
+                document.getElementById('fpsDisplay').textContent = frameCount;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            // Clear canvas with fade effect
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (audioContext) {
+                const dataArray = getFrequencyData();
+                updateVisualizerBars(dataArray);
+                updateInfoDisplay(dataArray);
+
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+                // Create particles
+                if (particlesEnabled && average > 20) {
+                    const particleSpawnRate = Math.floor((average / 255) * settings.particleCount * 0.1 * settings.sensitivity);
+                    for (let i = 0; i < particleSpawnRate; i++) {
+                        particles.push(new Particle(
+                            Math.random() * canvas.width,
+                            Math.random() * canvas.height
+                        ));
+                    }
+
+                    // Limit particle count
+                    if (particles.length > settings.particleCount) {
+                        particles = particles.slice(-settings.particleCount);
+                    }
+                }
+
+                // Update and draw particles
+                particles.forEach(p => {
+                    p.update();
+                    p.draw(ctx);
+                });
+                particles = particles.filter(p => !p.isDead());
+
+                // Draw waves based on frequency data
+                if (wavesEnabled) {
+                    drawWaves(dataArray);
+                }
+            }
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Draw Waves
+        function drawWaves(dataArray) {
+            ctx.strokeStyle = `hsla(${settings.hue}, 100%, 50%, 0.6)`;
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < dataArray.length - 1; i++) {
+                const x1 = (i / dataArray.length) * canvas.width;
+                const x2 = ((i + 1) / dataArray.length) * canvas.width;
+                const y1 = canvas.height / 2 - (dataArray[i] / 255) * canvas.height / 4;
+                const y2 = canvas.height / 2 - (dataArray[i + 1] / 255) * canvas.height / 4;
+
+                if (i === 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                }
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+        }
+
+        // Start animation loop
+        animate();
+
+        // Initialize buttons state
+        document.getElementById('particleToggle').classList.add('active');
+        document.getElementById('waveToggle').classList.add('active');
+    </script>
+</body>
+</html>
